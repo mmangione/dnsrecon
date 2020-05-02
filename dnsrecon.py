@@ -358,11 +358,11 @@ def brute_srv(res, domain, verbose=False, thread_num=None):
     if len(brtdata) > 0:
         for rcd_found in brtdata:
             for rcd in rcd_found:
-                returned_records.append([{"type": rcd[0],
+                returned_records.append({"type": rcd[0],
                                          "name": rcd[1],
                                          "target": rcd[2],
                                          "address": rcd[3],
-                                         "port": rcd[4]}])
+                                         "port": rcd[4]})
                 print_good({"type": rcd[0], "name": rcd[1], "target": rcd[2], "address": rcd[3], "port": rcd[4]})
     else:
         print_error(f"No SRV Records Found for {domain}")
@@ -726,7 +726,7 @@ def make_csv(data):
     return csv_data
 
 
-def write_json(jsonfile, data, scan_info):
+def write_json(jsonfile, data, scan_info, return_file=True):
     scaninfo = {"type": "ScanInfo", "arguments": scan_info[0], "date": scan_info[1]}
     data.insert(0, scaninfo)
     json_data = json.dumps(data, sort_keys=True, indent=4, separators=(',', ': '))
@@ -855,8 +855,9 @@ def check_bindversion(res, ns_server, timeout):
         try:
             response = res.query(request, ns_server, timeout=timeout, one_rr_per_rrset=True)
             if (len(response.answer) > 0):
-                print_status("\t Bind Version for {0} {1}".format(ns_server, response.answer[0].items[0].strings[0]))
-                version = response.answer[0].items[0].strings[0]
+                res = response.answer[0].items[0].strings[0]
+                print_status("\t Bind Version for {0} {1}".format(ns_server, res))
+                version = res.decode(encoding='UTF-8') if type(res) is bytes else res
         except (
                 dns.resolver.NXDOMAIN, dns.exception.Timeout, dns.resolver.NoAnswer, socket.error,
                 dns.query.BadResponse):
@@ -1139,7 +1140,7 @@ def lookup_next(target, res):
         if len(srv_answer) > 0:
             for r in srv_answer:
                 print_status("\t {0}".format(" ".join(r)))
-                returned_records.append({"type": r[0],
+                returned_records.extend({"type": r[0],
                                          "name": r[1],
                                          "target": r[2],
                                          "address": r[3],
@@ -1378,7 +1379,7 @@ def usage():
 
 # Main
 # -------------------------------------------------------------------------------
-def main():
+def main(args):
     #
     # Option Variables
     #
@@ -1459,7 +1460,7 @@ def main():
         parser.add_argument("--disable_check_bindversion", help="Disables check for BIND version on name servers",
                             action="store_true")
         parser.add_argument("-v", help="Enable verbose", action="store_true")
-        arguments = parser.parse_args()
+        arguments = parser.parse_args(args)
 
     except SystemExit:
         # Handle exit() from passing --help
@@ -1740,6 +1741,7 @@ def main():
             elif json_file is not None:
                 print_status("Saving records to JSON file: {0}".format(json_file))
                 write_json(json_file, returned_records, scan_info)
+            return returned_records
             sys.exit(0)
         except dns.resolver.NXDOMAIN:
             print_error("Could not resolve domain: {0}".format(domain))
