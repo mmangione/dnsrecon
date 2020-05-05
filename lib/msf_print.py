@@ -20,33 +20,38 @@ import platform
 #    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 
-def print_status(message=""):
-    if sys.stdout.isatty() and platform.system() != "Windows":
-        print("\033[1;34m[*]\033[1;m {0}".format(message))
-    else:
-        print("[*] {0}".format(message))
+def print_status(message="", print_message=True):
+    if print_message:
+        if sys.stdout.isatty() and platform.system() != "Windows":
+            print("\033[1;34m[*]\033[1;m {0}".format(message))
+        else:
+            print("[*] {0}".format(message))
 
 
-def print_good(message=""):
-    if sys.stdout.isatty() and platform.system() != "Windows":
-        print("\033[1;32m[+]\033[1;m {0}".format(message))
-    else:
-        print("[+] {0}".format(message))
+def print_good(message="", print_message=True):
+    if print_message:
+        if sys.stdout.isatty() and platform.system() != "Windows":
+            print("\033[1;32m[+]\033[1;m {0}".format(message))
+        else:
+            print("[+] {0}".format(message))
 
 
-def print_error(message=""):
-    if sys.stdout.isatty() and platform.system() != "Windows":
-        print("\033[1;31m[-]\033[1;m {0}".format(message))
-    else:
-        print("[-] {0}".format(message))
+def print_error(message="", print_message=True):
+    if print_message:
+        if sys.stdout.isatty() and platform.system() != "Windows":
+            print("\033[1;31m[-]\033[1;m {0}".format(message))
+        else:
+            print("[-] {0}".format(message))
 
 
-def print_debug(message=""):
-    if sys.stdout.isatty() and platform.system() != "Windows":
-        print("\033[1;31m[!]\033[1;m {0}".format(message))
-    else:
-        print("[!] {0}".format(message))
+def print_debug(message="", print_message=True):
+    if print_message:
+        if sys.stdout.isatty() and platform.system() != "Windows":
+            print("\033[1;31m[!]\033[1;m {0}".format(message))
+        else:
+            print("[!] {0}".format(message))
 
 
-def print_line(message=""):
-    print("{0}".format(message))
+def print_line(message="", print_message=True):
+    if print_message:
+        print("{0}".format(message))

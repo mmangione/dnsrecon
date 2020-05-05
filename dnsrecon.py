@@ -829,7 +829,7 @@ def dns_sec_check(domain, res):
 
     except dns.resolver.NXDOMAIN:
         print_error("Could not resolve domain: {0}".format(domain))
-        sys.exit(1)
+        quit()
 
     except dns.resolver.NoNameservers:
         print_error("All nameservers failed to answer the DNSSEC query for {0}".format(domain))
@@ -839,7 +839,7 @@ def dns_sec_check(domain, res):
         print_error("directly and requests are not being filtered. Increase the timeout from {0} second".format(
             res._res.timeout))
         print_error("to a higher number with --lifetime <time> option.")
-        sys.exit(1)
+        quit()
     except dns.resolver.NoAnswer:
         print_error("DNSSEC is not configured for {0}".format(domain))
 
@@ -905,7 +905,9 @@ def general_enum(res, domain, do_axfr, do_google, do_bing, do_spf, do_whois, do_
     ip_for_whois = []
 
     # Check if wildcards are enabled on the target domain
-    check_wildcard(res, domain)
+    wildcard_ip = check_wildcard(res, domain)
+    if wildcard_ip:
+        returned_records.append({'type': '*', 'name': domain, 'address': wildcard_ip})
 
     # To identify when the records come from a Zone Transfer
     from_zt = None
@@ -956,7 +958,7 @@ def general_enum(res, domain, do_axfr, do_google, do_bing, do_spf, do_whois, do_
             print_error("Could not Resolve NS Records for {0}".format(domain))
         except dns.resolver.NoNameservers:
             print_error("All nameservers failed to answer the NS query for {0}".format(domain))
-            sys.exit(1)
+            quit()
 
         # Enumerate MX Records
         try:
@@ -1092,7 +1094,7 @@ def query_ds(res, target, ns, timeout=5.0):
         print_error(
             "directly and requests are not being filtered. Increase the timeout from {0} second".format(timeout))
         print_error("to a higher number with --lifetime <time> option.")
-        sys.exit(1)
+        quit()
     except:
         print("Unexpected error: {0}".format(sys.exc_info()[0]))
         raise
@@ -1413,6 +1415,13 @@ def main(args):
     verbose = False
     ignore_wildcardrr = False
 
+    print_level = None
+    print_level_all = True
+    print_level_error = True
+    print_level_status = True
+    print_level_good = True
+    print_level_debug = False
+
     #
     # Global Vars
     #
@@ -1459,6 +1468,7 @@ def main(args):
                             action="store_true")
         parser.add_argument("--disable_check_bindversion", help="Disables check for BIND version on name servers",
                             action="store_true")
+        parser.add_argument("-p", "--print_level", type=str, dest="print_level", help="Threshold for printing a message.")
         parser.add_argument("-v", help="Enable verbose", action="store_true")
         arguments = parser.parse_args(args)
 
@@ -1468,12 +1478,13 @@ def main(args):
     except:
         print_error("Wrong Option Provided!")
         parser.print_help()
-        sys.exit(1)
+        quit()
     #
     # Parse options
     #
-    type = arguments.type
     domain = arguments.domain
+    print_level = arguments.print_level
+    type = arguments.type
 
     if arguments.ns_server:
         ns_server = []
@@ -1498,7 +1509,7 @@ def main(args):
         # User specified name servers but none of them validated
         if len(ns_server) == 0:
             print_error("Please specify valid name servers.")
-            sys.exit(1)
+            quit()
 
     output_file = arguments.xml
 
@@ -1549,6 +1560,12 @@ def main(args):
 
     domain_req = ["axfr", "std", "srv", "tld", "goo", "bing", "crt", "zonewalk"]
     scan_info = [" ".join(sys.argv), str(datetime.datetime.now())]
+    if print_level is not None:
+        valid_print_levels = {"all", "good", "status", "error", "debug"}
+        if print_level not in valid_print_levels:
+            print_error("This type of print level is not in the list: %s" % print_level)
+            quit()
+
 
     if type is not None:
 
@@ -1557,12 +1574,12 @@ def main(args):
         incorrect_types = [t for t in type.split(',') if t not in valid_types]
         if incorrect_types:
             print_error("This type of scan is not in the list: {0}".format(','.join(incorrect_types)))
-            sys.exit(1)
+            quit()
 
         for r in type.split(','):
             if r in domain_req and domain is None:
                 print_error('No Domain to target specified!')
-                sys.exit(1)
+                quit()
 
             try:
                 if r == "axfr":
@@ -1618,7 +1635,7 @@ def main(args):
                             exit(1)
                     else:
                         print_error('Could not execute a brute force enumeration. A domain was not given.')
-                        sys.exit(1)
+                        quit()
 
                 elif r == "srv":
                     print_status("Enumerating Common SRV Records against {0}".format(domain))
@@ -1666,7 +1683,7 @@ def main(args):
 
                     else:
                         print_error('No Domain or Name Server to target specified!')
-                        sys.exit(1)
+                        quit()
 
                 elif r == "zonewalk":
                     if (output_file is not None) or (results_db is not None) or (csv_file is not None) or (
@@ -1680,14 +1697,14 @@ def main(args):
 
             except dns.resolver.NXDOMAIN:
                 print_error("Could not resolve domain: {0}".format(domain))
-                sys.exit(1)
+                quit()
 
             except dns.exception.Timeout:
                 print_error("A timeout error occurred please make sure you can reach the target DNS Servers")
                 print_error("directly and requests are not being filtered. Increase the timeout from {0} second".format(
                     request_timeout))
                 print_error("to a higher number with --lifetime <time> option.")
-                sys.exit(1)
+                quit()
 
         # if an output xml file is specified it will write returned results.
         if output_file is not None:
@@ -1717,8 +1734,8 @@ def main(args):
         try:
             print_status("Performing General Enumeration of Domain: {0}".format(domain))
             std_enum_records = general_enum(res, domain, xfr, goo, bing, spf_enum, do_whois, do_crt, zonewalk)
-
-            returned_records.extend(std_enum_records)
+            if std_enum_records:
+                returned_records.extend(std_enum_records)
 
             # if an output xml file is specified it will write returned results.
             if output_file is not None:
@@ -1745,16 +1762,16 @@ def main(args):
             sys.exit(0)
         except dns.resolver.NXDOMAIN:
             print_error("Could not resolve domain: {0}".format(domain))
-            sys.exit(1)
+            quit()
 
         except dns.exception.Timeout:
             print_error("A timeout error occurred please make sure you can reach the target DNS Servers")
             print_error("directly and requests are not being filtered. Increase the timeout")
             print_error("to a higher number with --lifetime <time> option.")
-            sys.exit(1)
+            quit()
     else:
         usage()
-        sys.exit(1)
+        quit()
 
 
 if __name__ == "__main__":
